@@ -1,71 +1,90 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
-const stats = {}
 
+const execAsync = promisify(exec);
+const stats = {};
 
-// Get all commit SHAs in chronological order (oldest first)
-const commits = execSync('git log --reverse --format="%H"')
-  .toString()
-  .trim()
-  .split('\n');
+// Get the date 30 days ago in ISO format
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+const thirtyDaysAgoISO = thirtyDaysAgo.toISOString().split('T')[0];
+
+// Get all commit SHAs using async exec
+const { stdout: commitsOutput } = await execAsync(
+  `git log --reverse --since="${thirtyDaysAgoISO}" --format="%H"`
+);
+const commits = commitsOutput.trim().split('\n');
+
+// Skip if no commits found
+if (!commits[0]) {
+  console.log('No commits found in the last 30 days');
+  process.exit(0);
+}
 
 // Loop through each commit
-for (let i = 0; i < commits.length; i++) {
-  const commitSha = commits[i];
-  
-  // Get the commit message for this SHA
-  const commitMessage = execSync(`git log --format=%B -n 1 ${commitSha}`)
-    .toString()
-    .trim();
-
-  // Bail if it's not a build artifacts commit
-  if (commitMessage !== 'Build artifacts') continue
-
-  // Get the commit date in YYYY-MM-DD format
-  const commitDate = execSync(`git log -n 1 --format=%ad --date=iso ${commitSha}`)
-    .toString()
-    .trim()
-    .split(' ')[0];
-
-  // Read models-lite.json for this commit
-  let modelsJson;
+for (const commitSha of commits) {
   try {
-    modelsJson = execSync(`git show ${commitSha}:models-lite.json`)
-      .toString()
-      .trim();
+    // Get the commit message
+    const { stdout: commitMessage } = await execAsync(
+      `git log --format=%B -n 1 ${commitSha}`
+    );
+    
+    // Bail if it's not a build artifacts commit
+    if (commitMessage.trim() !== 'Build artifacts') continue;
+
+    // Get the commit date
+    const { stdout: commitDate } = await execAsync(
+      `git log -n 1 --format=%ad --date=iso ${commitSha}`
+    );
+    const formattedDate = commitDate.trim().split(' ')[0];
+
+    // Instead of using git show, we'll create a temporary file
+    await execAsync(
+      `git show ${commitSha}:models-lite.json > temp-models-${commitSha}.json`
+    );
+    
+    // Read the temporary file
+    const modelsJson = await fs.readFile(
+      `temp-models-${commitSha}.json`, 
+      'utf-8'
+    );
+    
+    // Clean up temporary file
+    await fs.unlink(`temp-models-${commitSha}.json`);
+
+    console.log({ commitSha, date: formattedDate });
+    
+    const models = JSON.parse(modelsJson);
+
+    // Process models data
+    for (const model of models) {
+      const nwo = `${model.owner}/${model.name}`;
+
+      if (!stats[nwo]) {
+        stats[nwo] = [];
+      }
+
+      const totalRuns = model.run_count;
+      const dailyRuns = stats[nwo].length > 0 
+        ? totalRuns - stats[nwo][stats[nwo].length - 1].totalRuns 
+        : totalRuns;
+
+      const dailyStats = {
+        date: formattedDate,
+        totalRuns,
+        dailyRuns,
+      };
+      stats[nwo].push(dailyStats);
+    }
   } catch (error) {
-    // Skip if models-lite.json doesn't exist in this commit
+    console.error(`Error processing commit ${commitSha}:`, error.message);
     continue;
   }
-
-  console.log({commitSha, commitDate});
-  
-  const models = JSON.parse(modelsJson);
-
-  // Loop through and print each model
-  for (const model of models) {
-    const nwo = `${model.owner}/${model.name}`
-
-    if (!stats[nwo]) {
-        stats[nwo] = []
-    }
-
-    const totalRuns = model.run_count
-    const dailyRuns = stats[nwo].length > 0 ? totalRuns - stats[nwo][stats[nwo].length - 1].totalRuns : totalRuns;
-
-    const dailyStats = {
-      date: commitDate,
-      totalRuns,
-      dailyRuns,
-    }
-    // console.log(dailyStats)
-    stats[nwo].push(dailyStats)
-  }
+}
 
 // Write stats to disk
 await fs.writeFile('stats.json', JSON.stringify(stats, null, 2));
-
-}
 
