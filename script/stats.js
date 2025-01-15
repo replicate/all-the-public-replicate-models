@@ -77,7 +77,12 @@ for (const commitSha of commits) {
         totalRuns,
         dailyRuns,
       };
-      stats[nwo].push(dailyStats);
+
+      
+      // Only add stats for new dates to avoid duplicates from multiple commits on the same day
+      if (stats[nwo].length === 0 || stats[nwo][stats[nwo].length - 1].date !== formattedDate) {
+        stats[nwo].push(dailyStats);
+      }
     }
     
   } catch (error) {
