@@ -13,10 +13,11 @@
   "main": "index.mjs",
   "exports": {
     ".": "./index.mjs",
-    "./lite": "./lite.mjs"
+    "./lite": "./lite.mjs",
+    "./stats": "./stats.mjs"
   },
   "scripts": {
-    "build": "node script/build.js",
+    "build": "node script/build.js && node script/stats.js",
     "test": "mocha test.js"
   },
   "engines": {
