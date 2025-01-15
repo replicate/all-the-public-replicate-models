@@ -2,6 +2,7 @@
 
 Metadata for all[^1] the public models on Replicate, bundled up into an npm package.
 
+This package also includes [historical daily run counts](#stats) for each model, which are updated daily.
 
 ## Installation
 
@@ -36,6 +37,28 @@ import {chain} from 'lodash-es'
 const mostRun = chain(models).orderBy('run_count', 'desc').take(10).value()
 console.log({mostRun})
 ```
+
+## Stats
+
+This package also includes historical daily run counts for each model, which are updated daily.
+
+```js
+import stats from 'all-the-public-replicate-models/stats'
+
+console.log(stats["black-forest-labs/flux-schnell"].slice(-5))
+
+/*
+[
+  { date: '2025-01-03', totalRuns: 176951005, dailyRuns: 1071498 },
+  { date: '2025-01-04', totalRuns: 178025758, dailyRuns: 1074753 },
+  { date: '2025-01-05', totalRuns: 179119496, dailyRuns: 1093738 },
+  { date: '2025-01-06', totalRuns: 180272877, dailyRuns: 1153381 },
+  { date: '2025-01-07', totalRuns: 181445133, dailyRuns: 1172256 }
+]
+*/
+```
+
+See [example.js](example.js) for a code snippet that uses the stats.
 
 ## Usage (as a CLI)
 
