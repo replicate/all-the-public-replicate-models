@@ -17,7 +17,7 @@
     "./stats": "./stats.mjs"
   },
   "scripts": {
-    "build": "node script/build.js && node script/stats.js",
+    "build": "node script/build.js && node script/stats.js && node script/report.js",
     "test": "mocha test.js"
   },
   "engines": {
