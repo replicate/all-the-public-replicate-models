@@ -22,7 +22,6 @@
     "lite.mjs",
     "stats.mjs",
     "models.json",
-    "models.json.gz",
     "models-lite.json",
     "stats.json"
   ],
