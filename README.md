@@ -99,4 +99,6 @@ Or you can dump all the model data to a file:
 npx all-the-public-replicate-models > models.json
 ```
 
+Note: the repo stores `models.json.gz` to keep git sizes down. The published npm package still ships `models.json`.
+
 [^1]: Technically it's not _all_ the models, but every model that is public, has at least one published version, and has at least one example prediction.
