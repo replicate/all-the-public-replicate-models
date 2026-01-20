@@ -5,6 +5,10 @@ on:
     - cron: '0 0 * * *' # This will run the action daily at midnight.
   workflow_dispatch: # This allows for manual triggering of the workflow.
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
@@ -40,24 +44,44 @@ jobs:
     - name: Run Tests
       run: npm test
 
-    - name: Commit changes before npm publish
+    - name: Create build branch
+      id: build_branch
+      run: |
+        BRANCH="automation/build-$(date +%Y%m%d%H%M%S)"
+        echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+        git checkout -b "$BRANCH"
+
+    - name: Commit build artifacts
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add -A
         git commit -m "Build artifacts" || echo "No changes to commit"
-        git push
-
 
     - name: Publish to npm
       run: npm version minor --force && npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-    - name: Commit changes after npm publish
-      run: |
-        git add -A
-        git commit -m "Bump version in package.json" || echo "No changes to commit"
-        git push
+    - name: Push build branch
+      run: git push -u origin "${{ steps.build_branch.outputs.branch }}"
 
+    - name: Open pull request
+      if: success()
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh pr create \
+          --base main \
+          --head "${{ steps.build_branch.outputs.branch }}" \
+          --title "chore: update build artifacts" \
+          --body "This PR updates the generated build artifacts." \
+          --label "automation" || echo "PR already exists"
+
+    - name: Enable auto-merge
+      if: success()
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh pr merge --auto --merge "${{ steps.build_branch.outputs.branch }}" || echo "Auto-merge not enabled"
 
