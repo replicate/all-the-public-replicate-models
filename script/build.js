@@ -1,7 +1,8 @@
 import Replicate from "replicate";
 const replicate = new Replicate();
 import {unset} from "lodash-es";
-import fs from "fs";
+import fs from "node:fs";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 async function main () {
   console.error("Fetching all public models from Replicate...")
@@ -31,9 +32,18 @@ async function main () {
     }
   });
 
+  const modelsJson = JSON.stringify(models, null, 2);
+
   // save old data for comparison in stats script
-  fs.copyFileSync('models.json', 'models.old.json');
-  fs.writeFileSync('models.json', JSON.stringify(models, null, 2))
+  if (fs.existsSync('models.json')) {
+    fs.copyFileSync('models.json', 'models.old.json');
+  } else if (fs.existsSync('models.json.gz')) {
+    const previousModels = gunzipSync(fs.readFileSync('models.json.gz'));
+    fs.writeFileSync('models.old.json', previousModels);
+  }
+
+  fs.writeFileSync('models.json', modelsJson)
+  fs.writeFileSync('models.json.gz', gzipSync(modelsJson))
   fs.writeFileSync('models-lite.json', JSON.stringify(lite, null, 2))
 }
 

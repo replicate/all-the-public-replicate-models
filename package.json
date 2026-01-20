@@ -16,8 +16,19 @@
     "./lite": "./lite.mjs",
     "./stats": "./stats.mjs"
   },
+  "files": [
+    "cli.js",
+    "index.mjs",
+    "lite.mjs",
+    "stats.mjs",
+    "models.json",
+    "models-lite.json",
+    "stats.json"
+  ],
   "scripts": {
     "build": "node script/build.js && node script/stats.js",
+    "prepack": "node script/prepack.js",
+    "postpack": "node script/postpack.js",
     "test": "mocha test.js"
   },
   "engines": {

@@ -1,4 +1,5 @@
 .env
 .npmrc
 node_modules
+models.json
 models.old.json
