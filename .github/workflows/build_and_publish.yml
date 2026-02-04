@@ -18,6 +18,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # This fetches all history for all branches and tags
+        fetch-tags: true
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -58,13 +59,32 @@ jobs:
         git add -A
         git commit -m "Build artifacts" || echo "No changes to commit"
 
+    - name: Select next available npm version
+      id: npm_check
+      run: |
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        MAJOR=$(node -p "require('./package.json').version.split('.')[0]")
+        MINOR=$(node -p "require('./package.json').version.split('.')[1]")
+        PATCH=0
+        while true; do
+          CANDIDATE="$MAJOR.$MINOR.$PATCH"
+          if npm view all-the-public-replicate-models@"$CANDIDATE" version >/dev/null 2>&1; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            break
+          fi
+        done
+        echo "current=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+        echo "target=$CANDIDATE" >> "$GITHUB_OUTPUT"
+
     - name: Publish to npm
-      run: npm version minor --force && npm publish
+      run: npm version "${{ steps.npm_check.outputs.target }}" --force && npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Push build branch
-      run: git push -u origin "${{ steps.build_branch.outputs.branch }}"
+      run: git push -u origin "${{ steps.build_branch.outputs.branch }}" --follow-tags
 
     - name: Open pull request
       if: success()
@@ -84,4 +104,3 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh pr merge --auto --merge "${{ steps.build_branch.outputs.branch }}" || echo "Auto-merge not enabled"
-
